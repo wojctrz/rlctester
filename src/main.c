@@ -9,6 +9,9 @@
 #define ADC_LINE GPIOA
 #define ADC_IN_PIN GPIO_PIN_0
 
+#define FREQ_SET_HEADER 0b00
+#define SHAPE_SET_HEADER 0b01
+
 SPI_HandleTypeDef spi;
 TIM_HandleTypeDef tim2;
 TIM_HandleTypeDef tim4;
@@ -95,19 +98,40 @@ int main(void)
 	uart = ConfigureUART();
 	adc = ConfigureADC(ADC_LINE, ADC_IN_PIN);
 	ConfigureMux(MUX_IN_LINE, MUX_IN1, MUX_IN2, MUX_IN3);
-	SetMuxSquare(MUX_IN_LINE, MUX_IN1, MUX_IN2, MUX_IN3);
+	SetMuxSine(MUX_IN_LINE, MUX_IN1, MUX_IN2, MUX_IN3);
 
 	while (1)
 	{
 
-//		{
-//			if (__HAL_UART_GET_FLAG(&uart, UART_FLAG_RXNE) == SET)
-//			{
-//				uint8_t value;
-//				HAL_UART_Receive(&uart, &value, 1, 100);
-//				freq = value;
-//			}
-//		}
+		{
+			if (__HAL_UART_GET_FLAG(&uart, UART_FLAG_RXNE) == SET)
+			{
+				uint8_t receivedframe;
+				HAL_UART_Receive(&uart, &receivedframe, 1, 100);
+				uint8_t receivedheader = (receivedframe & 0xC0) >> 6;
+				uint8_t receivedvalue = receivedframe & 0x3F;
+				switch(receivedheader)
+				{
+				case FREQ_SET_HEADER:	//0b00
+					freq = receivedvalue;
+					break;
+
+				case SHAPE_SET_HEADER:	//0b01
+					if(receivedvalue == 0)
+					{
+						SetMuxSine(MUX_IN_LINE, MUX_IN1, MUX_IN2, MUX_IN3);
+					}
+					else
+					{
+						SetMuxSquare(MUX_IN_LINE, MUX_IN1, MUX_IN2, MUX_IN3);
+					}
+					break;
+
+				default:
+					break;
+				}
+			}
+		}
 		if(should)
 		{
 			should = 0;
@@ -118,7 +142,7 @@ int main(void)
 			{
 				send_char(buff[i]);
 			}
-			//send_char('\r');
+			send_char('\r');
 			send_char('\n');
 		}
 		// printf("Adc = %ld (%.3fV)\r\n", value, value * 3.3f / 4096.0f);
