@@ -36,7 +36,8 @@ void TIM2_IRQHandler(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	uint32_t miliseconds = HAL_GetTick();
-	double currentsin = sin(2 * 3.14 * freq * miliseconds);
+	double seconds = miliseconds / 1000.0;
+	double currentsin = sin(2 * 3.14 * freq * seconds);
 
 	/* convert sin to 0-255 */
 	uint8_t dac_value = (uint8_t)((currentsin + 1) * 127);
@@ -93,7 +94,7 @@ int main(void)
 
 	ConfigureTimer(&tim2);
 	ConfigureSPI(&spi);
-	ConfigurePWM(&tim4);
+	ConfigurePWM(&tim4, 1);
 	//ConfigureGPIO();
 	uart = ConfigureUART();
 	adc = ConfigureADC(ADC_LINE, ADC_IN_PIN);
@@ -108,12 +109,13 @@ int main(void)
 			{
 				uint8_t receivedframe;
 				HAL_UART_Receive(&uart, &receivedframe, 1, 100);
-				uint8_t receivedheader = (receivedframe & 0xC0) >> 6;
+				uint8_t receivedheader = receivedframe >> 6;
 				uint8_t receivedvalue = receivedframe & 0x3F;
 				switch(receivedheader)
 				{
 				case FREQ_SET_HEADER:	//0b00
-					freq = receivedvalue;
+					freq = receivedvalue * 5;
+					ConfigurePWM(&tim4, freq);
 					break;
 
 				case SHAPE_SET_HEADER:	//0b01
@@ -135,17 +137,11 @@ int main(void)
 		if(should)
 		{
 			should = 0;
-			char buff[10];
-			itoa(value, buff, 10);
-			uint8_t i;
-			for(i = 0; i < 4; i++)
-			{
-				send_char(buff[i]);
-			}
+			char buff = (char)(value>>4);
+			send_char(buff);
 			send_char('\r');
 			send_char('\n');
 		}
-		// printf("Adc = %ld (%.3fV)\r\n", value, value * 3.3f / 4096.0f);
 	}
 }
 

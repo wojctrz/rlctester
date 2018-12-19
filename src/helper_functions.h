@@ -5,7 +5,7 @@
 void SystemClockConfig(void);
 void ConfigureTimer(TIM_HandleTypeDef *tim2);
 void ConfigureSPI(SPI_HandleTypeDef *spi);
-void ConfigurePWM(TIM_HandleTypeDef *tim4);
+void ConfigurePWM(TIM_HandleTypeDef *tim4, uint8_t freq);
 UART_HandleTypeDef ConfigureUART();
 void ConfigureGPIO(void);
 uint16_t BuildDacFrame(uint8_t value);
