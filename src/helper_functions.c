@@ -100,11 +100,11 @@ void ConfigurePWM(TIM_HandleTypeDef *tim4, uint8_t freq)
 {
 
 	__HAL_RCC_TIM4_CLK_ENABLE();
-	uint32_t prescaler = 1000000 / freq;
+	uint32_t prescaler = 1000 / freq;
 	/* timer configuration */
 	tim4->Instance = TIM4;
-	tim4->Init.Period = 1000 - 1;
-	tim4->Init.Prescaler = prescaler; //32000 - 1;
+	tim4->Init.Period = prescaler - 1;
+	tim4->Init.Prescaler = 64000 - 1;
 	tim4->Init.ClockDivision = 0;
 	tim4->Init.CounterMode = TIM_COUNTERMODE_UP;
 	tim4->Init.RepetitionCounter = 0;
@@ -121,7 +121,7 @@ void ConfigurePWM(TIM_HandleTypeDef *tim4, uint8_t freq)
 
 	TIM_OC_InitTypeDef oc;
 	oc.OCMode = TIM_OCMODE_PWM1;
-	oc.Pulse = 500;
+	oc.Pulse = prescaler / 2;
 	oc.OCPolarity = TIM_OCPOLARITY_HIGH;
 	oc.OCNPolarity = TIM_OCNPOLARITY_LOW;
 	oc.OCFastMode = TIM_OCFAST_ENABLE;
