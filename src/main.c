@@ -16,15 +16,21 @@ SPI_HandleTypeDef spi;
 TIM_HandleTypeDef tim2;
 TIM_HandleTypeDef tim4;
 uint8_t freq = 10;
-uint8_t should = 0;
+uint8_t SendDataFlag = 0;
+uint32_t timeoffset = 0;
 uint32_t value;
 
 ADC_HandleTypeDef adc;
 UART_HandleTypeDef uart;
 
-void send_char(char c)
+void SendChar(char c)
 {
 	HAL_UART_Transmit(&uart, (uint8_t*)&c, 1, 1000);
+}
+
+void send_data(uint8_t data[], uint16_t size)
+{
+	HAL_UART_Transmit(&uart, data, size, 1000);
 }
 
 
@@ -36,7 +42,7 @@ void TIM2_IRQHandler(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	uint32_t miliseconds = HAL_GetTick();
-	double seconds = miliseconds / 1000.0;
+	double seconds = (miliseconds - timeoffset) / 1000.0;
 	double currentsin = sin(2 * 3.14 * freq * seconds);
 
 	/* convert sin to 0-255 */
@@ -46,7 +52,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	SpiWrite(dac_frame, &spi, DAC_SS_LINE, DAC_SS_PIN);
 
 	value = HAL_ADC_GetValue(&adc);
-	should = 1;
+	SendDataFlag = 1;
 }
 
 void EXTI15_10_IRQHandler(void)
@@ -79,6 +85,7 @@ int main(void)
 	//	PA3 - USART2_RX
 	//
 	//	PB6 - PWM (Timer 4 channel 1)
+	//  PC1, PC2, PC3 - Multiplexer control pins
 
 	SystemClockConfig();
 
@@ -114,6 +121,7 @@ int main(void)
 				switch(receivedheader)
 				{
 				case FREQ_SET_HEADER:	//0b00
+					timeoffset = HAL_GetTick();
 					freq = receivedvalue * 5;
 					ConfigurePWM(&tim4, freq);
 					break;
@@ -134,13 +142,18 @@ int main(void)
 				}
 			}
 		}
-		if(should)
+		if(SendDataFlag)
 		{
-			should = 0;
-			char buff = (char)(value>>4);
-			send_char(buff);
-			send_char('\r');
-			send_char('\n');
+			SendDataFlag = 0;
+			char buff[4];
+			itoa(value, buff, 10);
+			int i = 0;
+			for(i=0; i < 4; i++)
+			{
+				SendChar(buff[i]);
+			}
+			SendChar('\r');
+			SendChar('\n');
 		}
 	}
 }
